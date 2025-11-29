@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { auth } from './auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -8,6 +9,29 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Add token to requests
+api.interceptors.request.use((config) => {
+  const token = auth.getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Handle 401 errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      auth.removeAuth();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export interface Todo {
   id: string;

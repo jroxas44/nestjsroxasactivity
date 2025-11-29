@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
@@ -7,21 +7,25 @@ import { UpdateTodoDto } from './dto/update-todo.dto';
 export class TodoService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createTodoDto: CreateTodoDto) {
+  async create(createTodoDto: CreateTodoDto, userId: string) {
     return this.prisma.todo.create({
-      data: createTodoDto,
+      data: {
+        ...createTodoDto,
+        userId,
+      },
     });
   }
 
-  async findAll() {
+  async findAll(userId: string) {
     return this.prisma.todo.findMany({
+      where: { userId },
       orderBy: {
         createdAt: 'desc',
       },
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, userId: string) {
     const todo = await this.prisma.todo.findUnique({
       where: { id },
     });
@@ -30,11 +34,15 @@ export class TodoService {
       throw new NotFoundException(`Todo with ID ${id} not found`);
     }
 
+    if (todo.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to access this todo');
+    }
+
     return todo;
   }
 
-  async update(id: string, updateTodoDto: UpdateTodoDto) {
-    await this.findOne(id);
+  async update(id: string, updateTodoDto: UpdateTodoDto, userId: string) {
+    await this.findOne(id, userId);
 
     return this.prisma.todo.update({
       where: { id },
@@ -42,8 +50,8 @@ export class TodoService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, userId: string) {
+    await this.findOne(id, userId);
 
     return this.prisma.todo.delete({
       where: { id },

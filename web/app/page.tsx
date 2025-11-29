@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { todoApi, Todo, CreateTodoDto, UpdateTodoDto } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import TodoForm from '@/components/TodoForm';
 import TodoList from '@/components/TodoList';
 import EditModal from '@/components/EditModal';
@@ -11,10 +13,20 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const { user, loading: authLoading, logout } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    loadTodos();
-  }, []);
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (user) {
+      loadTodos();
+    }
+  }, [user]);
 
   const loadTodos = async () => {
     try {
@@ -84,11 +96,43 @@ export default function Home() {
     setEditingTodo(null);
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect to login
+  }
+
+  const handleLogout = () => {
+    if (confirm('Are you sure you want to logout?')) {
+      logout();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-green-500 shadow-md">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-white">Todo App</h1>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-white">Todo App</h1>
+              {user.name && <p className="text-white text-sm mt-1">Hello, {user.name}</p>}
+            </div>
+            <button
+              onClick={handleLogout}
+              className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-md transition-colors"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
       <main className="max-w-4xl mx-auto px-4 py-8">
